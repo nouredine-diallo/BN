@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Connexion - Bataille Navale{% endblock %}
+
+{% block content %}
+
+    {% if 'redirection' in REQUEST_VARS %}
+        <script>
+            window.location.href = "{{ REQUEST_VARS['redirection'] }}";
+        </script>
+    {% endif %}
+
+    <div class="page-connexion-container" style="max-width: 800px; margin: auto; padding: 20px;">
+        
+        <h2 style="text-align: center;">Connexion au jeu</h2>
+
+        {% if 'message' in REQUEST_VARS %}
+            <div class="message-alerte {{ REQUEST_VARS['message_class'] }}" style="padding: 10px; margin-bottom: 20px; border-radius: 5px; font-weight: bold;">
+                {{ REQUEST_VARS['message'] }}
+            </div>
+        {% endif %}
+
+        <section class="section-bloc bloc-recherche" style="background-color: #2c3e50; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3>🔍 Rechercher mon profil</h3>
+            
+            <form action="/connexion" method="POST">
+                <label for="pseudo_recherche">Entrez votre pseudo :</label>
+                <input type="text" id="pseudo_recherche" name="pseudo_recherche" placeholder="Ex: nico..." required style="padding: 5px; margin-left: 10px;">
+                
+                <button type="submit" name="btn_chercher" value="1" style="padding: 6px 15px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+                    Chercher
+                </button>
+            </form>
+
+            <hr style="margin: 20px 0; border-color: #34495e;">
+
+            {% if 'resultats_recherche' in REQUEST_VARS %}
+                <h4>Résultats de la recherche :</h4>
+                <ul style="list-style-type: none; padding-left: 0;">
+                {% for joueur in REQUEST_VARS['resultats_recherche'] %}
+                    <li style="background-color: #34495e; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        
+                        <span>
+                            <strong>{{ joueur['pseudo'] }}</strong> 
+                            <em style="color: #bdc3c7; font-size: 0.9em;">({{ joueur['prenom'] }} {{ joueur['nom'] }})</em>
+                        </span>
+                        
+                        <form action="/connexion" method="POST" style="margin: 0;">
+                            <input type="hidden" name="id_joueur_choisi" value="{{ joueur['id_joueur'] }}">
+                            <button type="submit" name="btn_choisir" value="1" style="background-color: #05c46b; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                C'est moi !
+                            </button>
+                        </form>
+
+                    </li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+
+        <section class="section-bloc bloc-inscription" style="background-color: #2c3e50; padding: 20px; border-radius: 8px;">
+            <h3>📝 Nouveau joueur ? S'inscrire</h3>
+            
+            <form action="/connexion" method="POST" style="display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin-top: 15px;">
+                <input type="text" name="pseudo_insc" placeholder="Pseudo choisi" required style="padding: 8px; border-radius: 4px; border: none;">
+                <input type="text" name="nom_insc" placeholder="Votre Nom" required style="padding: 8px; border-radius: 4px; border: none;">
+                <input type="text" name="prenom_insc" placeholder="Votre Prénom" required style="padding: 8px; border-radius: 4px; border: none;">
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label style="font-size: 0.9em; color: white;">Date de naissance :</label>
+                    <input type="date" name="date_naiss_insc" required style="padding: 8px; border-radius: 4px; border: none;">
+                </div>
+                
+                <button type="submit" name="btn_inscrire" value="1" style="background-color: #e67e22; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;">
+                    Créer mon compte et jouer
+                </button>
+            </form>
+            
+        </section>
+
+    </div>
+{% endblock %}

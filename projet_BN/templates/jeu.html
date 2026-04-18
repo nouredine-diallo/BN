@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Plateau de Jeu - Bataille Navale{% endblock %}
+
+{% block content %}
+    {% if 'redirection' in REQUEST_VARS %}
+        <script>window.location.href = "{{ REQUEST_VARS['redirection'] }}";</script>
+    {% endif %}
+
+    <div class="page-jeu-container" style="max-width: 1200px; margin: auto; padding: 20px;">
+        
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background-color: #2c3e50; padding: 15px; border-radius: 8px; color: white;">
+            <h2 style="margin: 0;">⚓ Partie #{{ REQUEST_VARS['id_partie'] }}</h2>
+            <a href="/parties" style="background-color: #e74c3c; color: white; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold;">Quitter</a>
+        </header>
+
+        {% if 'message_jeu' in REQUEST_VARS %}
+            <div style="background-color: #f39c12; color: white; padding: 10px; text-align: center; border-radius: 5px; margin-bottom: 20px; font-weight: bold;">
+                {{ REQUEST_VARS['message_jeu'] }}
+            </div>
+        {% endif %}
+
+        {% if REQUEST_VARS['phase'] == 'placement' %}
+            
+            <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap;">
+                
+                <div style="background-color: #ecf0f1; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h4 style="text-align: center; color: #2980b9;">Ma Flotte</h4>
+                    <table style="border-collapse: collapse; background-color: #3498db;">
+                        <tr>
+                            <th style="width: 30px; height: 30px;"></th>
+                            {% for x in range(1, 11) %}
+                                <th style="width: 40px; height: 30px; color: white; border: 1px solid #2980b9;">{{ x }}</th>
+                            {% endfor %}
+                        </tr>
+                        {% for ligne in REQUEST_VARS['ma_grille'] %}
+                            <tr>
+                                <th style="width: 30px; height: 40px; color: white; border: 1px solid #2980b9;">{{ ligne[0]['lettre'] }}</th>
+                                {% for case in ligne %}
+                                    {% if case['occupe'] %}
+                                        <td style="width: 40px; height: 40px; border: 1px solid #2980b9; background-color: #2ecc71;"></td>
+                                    {% else %}
+                                        <td style="width: 40px; height: 40px; border: 1px solid #2980b9; background-color: rgba(255,255,255,0.2);"></td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+
+                <div style="background-color: #34495e; color: white; padding: 20px; border-radius: 8px; min-width: 300px;">
+                    <h3 style="margin-top: 0;">🛠️ Chantier Naval</h3>
+                    
+                    {% if not REQUEST_VARS['flotte_complete'] %}
+                        <p>Placez vos navires restants :</p>
+                        <form action="/jeu" method="POST" style="display: flex; flex-direction: column; gap: 15px;">
+                            <input type="hidden" name="id" value="{{ REQUEST_VARS['id_partie'] }}">
+                            <input type="hidden" name="action" value="placer">
+                            
+                            <select name="id_navire" required style="padding: 10px; border-radius: 4px;">
+                                <option value="" disabled selected>-- Choisir un navire --</option>
+                                {% for nav in REQUEST_VARS['navires_a_placer'] %}
+                                    <option value="{{ nav['id_navire'] }}">{{ nav['nom'] }} (Taille {{ nav['taille'] }})</option>
+                                {% endfor %}
+                            </select>
+
+                            <input type="text" name="coord" placeholder="Coordonnée (ex: A5)" required pattern="[a-jA-J][1-9]0?" style="padding: 10px; border-radius: 4px;">
+                            
+                            <select name="sens" required style="padding: 10px; border-radius: 4px;">
+                                <option value="Horizontal">Horizontal</option>
+                                <option value="Vertical">Vertical</option>
+                            </select>
+
+                            <button type="submit" style="background-color: #f39c12; color: white; padding: 10px; border: none; font-weight: bold; border-radius: 4px; cursor: pointer;">Placer sur la grille</button>
+                        </form>
+                    {% else %}
+                        <p style="color: #2ecc71; font-weight: bold; font-size: 1.1em;">Toute votre flotte est déployée !</p>
+                        <form action="/jeu" method="POST">
+                            <input type="hidden" name="id" value="{{ REQUEST_VARS['id_partie'] }}">
+                            <input type="hidden" name="action" value="lancer">
+                            <button type="submit" style="background-color: #2ecc71; color: white; padding: 15px; width: 100%; border: none; font-weight: bold; font-size: 1.2em; border-radius: 4px; cursor: pointer; transition: 0.2s;">Commencer la partie !</button>
+                        </form>
+                    {% endif %}
+                </div>
+
+            </div>
+
+        {% else %}
+            
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                
+                {% if REQUEST_VARS['attente_suivant'] %}
+                    <div style="text-align: center; padding: 20px; background-color: #ecf0f1; margin-bottom: 20px; border-radius: 8px; width: 100%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <h3 style="color: #2c3e50; margin-top: 0;">Fin de votre tour !</h3>
+                        <p>Attendez que l'adversaire joue.</p>
+                        <form action="/jeu" method="POST">
+                            <input type="hidden" name="id" value="{{ REQUEST_VARS['id_partie'] }}">
+                            <input type="hidden" name="action" value="suivant">
+                            <button type="submit" style="background-color: #3498db; color: white; padding: 15px 30px; border: none; font-weight: bold; font-size: 1.2em; border-radius: 4px; cursor: pointer;">Tour Suivant ➔</button>
+                        </form>
+                    </div>
+                {% endif %}
+
+                <div style="background-color: #ecf0f1; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); {% if REQUEST_VARS['attente_suivant'] %}opacity: 0.5; pointer-events: none;{% endif %}">
+                    <h4 style="text-align: center; color: #e74c3c;">Territoire Ennemi (Tirez ici)</h4>
+                    
+                    <table style="border-collapse: collapse; background-color: #3498db;">
+                        <tr>
+                            <th style="width: 30px; height: 30px;"></th>
+                            {% for x in range(1, 11) %}
+                                <th style="width: 40px; height: 30px; color: white; border: 1px solid #2c3e50;">{{ x }}</th>
+                            {% endfor %}
+                        </tr>
+                        {% for ligne in REQUEST_VARS['ma_grille'] %}
+                            <tr>
+                                <th style="width: 30px; height: 40px; color: white; border: 1px solid #2c3e50;">{{ ligne[0]['lettre'] }}</th>
+                                {% for case in ligne %}
+                                    <td style="width: 40px; height: 40px; border: 1px solid #2c3e50; padding: 0;">
+                                        <form action="/jeu" method="POST" style="margin: 0; height: 100%;">
+                                            <input type="hidden" name="id" value="{{ REQUEST_VARS['id_partie'] }}">
+                                            <input type="hidden" name="action" value="tirer">
+                                            <input type="hidden" name="coord" value="{{ case['id_case'] }}">
+                                            <button type="submit" style="width: 100%; height: 100%; background-color: rgba(255,255,255,0.1); border: none; cursor: crosshair; transition: 0.2s;" 
+                                                    onmouseover="this.style.backgroundColor='rgba(231, 76, 60, 0.5)'" 
+                                                    onmouseout="this.style.backgroundColor='rgba(255,255,255,0.1)'"
+                                                    title="Tirer en {{ case['id_case'] }}"></button>
+                                        </form>
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+
+        {% endif %}
+
+    </div>
+{% endblock %}

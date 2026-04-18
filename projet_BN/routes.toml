@@ -1,0 +1,21 @@
+[[routes]]
+url = ""
+controleur = "controleurs/accueil.py"
+template = "accueil.html"
+
+[[routes]]
+url = "parties"
+controleur = "controleurs/parties.py"
+template = "parties.html"
+
+
+[[routes]]
+url = "connexion"
+controleur = "controleurs/connexion.py"
+template = "connexion.html"
+
+[[routes]]
+url = "jeu"
+controleur = "controleurs/jeu.py"
+template = "jeu.html"
+

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Parties - Bataille Navale{% endblock %}
+
+{% block content %}
+
+    {% if 'redirection' in REQUEST_VARS %}
+        <script>
+            window.location.href = "{{ REQUEST_VARS['redirection'] }}";
+        </script>
+    {% endif %}
+
+    <div class="page-parties-container" style="max-width: 1000px; margin: auto; padding: 20px;">
+        
+        <header class="parties-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h2 style="color: #2c3e50; margin: 0;">🎮 Gestion des Parties</h2>
+            <a href="/deconnexion" class="btn-deconnexion" style="background-color: #e74c3c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; transition: 0.3s;">
+                Se déconnecter
+            </a>
+        </header>
+
+        {% if 'message' in REQUEST_VARS %}
+            <div class="message-alerte {{ REQUEST_VARS['message_class'] }}" style="padding: 15px; margin-bottom: 25px; border-radius: 5px; font-weight: bold; text-align: center; border: 1px solid rgba(0,0,0,0.1);">
+                {{ REQUEST_VARS['message'] }}
+            </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+            
+            <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 20px;">
+                
+                <section class="section-bloc bloc-nouvelle-partie" style="background-color: #2c3e50; padding: 20px; border-radius: 8px; color: white;">
+                    <h3 style="margin-top: 0; color: #ecf0f1;">⚔️ Commencer une partie</h3>
+                    
+                    <form action="/parties" method="POST" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                        <label for="id_adversaire" style="font-size: 0.9em; color: #bdc3c7;">Choisissez votre adversaire :</label>
+                        
+                        <select name="id_adversaire" id="id_adversaire" required style="padding: 10px; border-radius: 4px; border: none; background-color: #ecf0f1; color: #2c3e50;">
+                            <option value="" disabled selected>-- Liste des joueurs virtuels --</option>
+                            {% for jv in REQUEST_VARS['liste_jv'] %}
+                                <option value="{{ jv['id_joueur'] }}">{{ jv['pseudo'] }} (Niveau {{ jv['niveau'] }})</option>
+                            {% endfor %}
+                        </select>
+                        
+                        <button type="submit" name="nouvelle_partie" value="1" style="background-color: #05c46b; color: white; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 1em;">
+                            Lancer la partie !
+                        </button>
+                    </form>
+                </section>
+
+                <section class="section-bloc bloc-adversaire" style="background-color: #34495e; padding: 20px; border-radius: 8px; color: white;">
+                    <h3 style="margin-top: 0; color: #ecf0f1;">🤖 Nouvel Adversaire</h3>
+                    <p style="font-size: 0.9em; color: #bdc3c7; margin-bottom: 15px;">Créez une IA pour vous entraîner.</p>
+                    
+                    <form action="/parties" method="POST" style="display: flex; flex-direction: column; gap: 10px;">
+                        <input type="text" name="pseudo_jv" placeholder="Pseudo de l'IA" required style="padding: 10px; border-radius: 4px; border: none;">
+                        
+                        <select name="niveau_jv" required style="padding: 10px; border-radius: 4px; border: none;">
+                            <option value="" disabled selected>-- Choisir la difficulté --</option>
+                            <option value="1">Niveau 1 (Facile)</option>
+                            <option value="2">Niveau 2 (Intermédiaire)</option>
+                            <option value="3">Niveau 3 (Expert)</option>
+                        </select>
+                        
+                        <button type="submit" name="creer_jv" value="1" style="background-color: #f39c12; color: white; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 5px;">
+                            Ajouter ce Bot
+                        </button>
+                    </form>
+                </section>
+
+            </div>
+
+            <div style="flex: 1.5; min-width: 350px; display: flex; flex-direction: column; gap: 20px;">
+                
+                <section class="section-bloc bloc-en-cours" style="background-color: #27ae60; padding: 20px; border-radius: 8px; color: white;">
+                    <h3 style="margin-top: 0;">▶ Parties en cours</h3>
+                    
+                    {% if REQUEST_VARS['parties_en_cours'] %}
+                        <ul style="list-style: none; padding-left: 0; margin: 0;">
+                        {% for partie in REQUEST_VARS['parties_en_cours'] %}
+                            <li style="background-color: rgba(255,255,255,0.15); padding: 15px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                                
+                                <div>
+                                    <strong style="font-size: 1.1em;">Partie n°{{ partie['id_partie'] }}</strong><br>
+                                    <span style="font-size: 0.9em; color: #ecf0f1;">Contre <em>{{ partie['adversaire'] }}</em></span><br>
+                                    <small style="opacity: 0.8;">Créée le {{ partie['date_creation'] }}</small>
+                                </div>
+                                
+                                <a href="/jeu?id={{ partie['id_partie'] }}" style="background-color: white; color: #27ae60; padding: 8px 15px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9em; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    Reprendre
+                                </a>
+                                
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p style="background-color: rgba(0,0,0,0.1); padding: 15px; border-radius: 5px; font-style: italic;">Aucune partie en cours pour le moment.</p>
+                    {% endif %}
+                </section>
+
+                <section class="section-bloc bloc-historique" style="background-color: #ecf0f1; padding: 20px; border-radius: 8px; border: 1px solid #bdc3c7;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">📜 Historique (Parties terminées)</h3>
+                    
+                    {% if REQUEST_VARS['parties_terminees'] %}
+                        <ul style="list-style: none; padding-left: 0; margin: 0;">
+                        {% for partie in REQUEST_VARS['parties_terminees'] %}
+                            <li style="background-color: white; padding: 12px 15px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #95a5a6; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                
+                                <span style="color: #2c3e50;">
+                                    <strong>Partie n°{{ partie['id_partie'] }}</strong> contre {{ partie['adversaire'] }}
+                                </span>
+                                
+                                {% if partie['gagnant'] != partie['adversaire'] %}
+                                    <span style="background-color: #05c46b; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">Victoire</span>
+                                {% else %}
+                                    <span style="background-color: #e74c3c; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight: bold;">Défaite</span>
+                                {% endif %}
+                                
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p style="color: #7f8c8d; font-style: italic;">Aucun historique disponible. Jouez votre première partie !</p>
+                    {% endif %}
+                </section>
+
+            </div>
+        </div>
+
+    </div>
+
+{% endblock %}

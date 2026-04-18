@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Accueil - Bataille Navale{% endblock %}
+
+{% block content %}
+    <h2 class="acceuil">⚓ Bienvenue {{ REQUEST_VARS['pseudo_joueur'] }} !</h2>
+
+    <div class="stats" style="display: flex; flex-wrap: wrap; gap: 20px; background-color: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+            <p style="font-size: 2em; font-weight: bold; margin: 0;">{{ REQUEST_VARS['statistiques']['nb_3_mois'] }}</p>
+            <p>Parties finies (3 mois)</p>
+        </div>
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+            <p style="font-size: 2em; font-weight: bold; margin: 0;">{{ REQUEST_VARS['statistiques']['moy_tours'] }}</p>
+            <p>Tours moyens</p>
+        </div>
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+            <p style="font-size: 2em; font-weight: bold; margin: 0;">{{ REQUEST_VARS['statistiques']['points_2026'] }}</p>
+            <p>Points cumulés (2026)</p>
+        </div>
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+            <p style="font-size: 2em; font-weight: bold; margin: 0; color: #f1c40f;">{{ REQUEST_VARS['statistiques']['etoile_mort_10'] }}</p>
+            <p>Étoiles de la mort (Top 10)</p>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+        <div style="background-color: #2c3e50; padding: 15px; border-radius: 8px;">
+            <h4>🏆 Victoires par niveau d'adversaire</h4>
+            <ul style="list-style: none; padding-left: 0;">
+                {% for stat in REQUEST_VARS['statistiques']['victoires_par_niveau'] %}
+                    <li>Niveau <strong>{{ stat['niveau'] }}</strong> : {{ stat['nb'] }} victoire(s)</li>
+                {% else %}
+                    <li style="color: #bdc3c7;">Aucune victoire enregistrée.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div style="background-color: #2c3e50; padding: 15px; border-radius: 8px;">
+            <h4>🃏 Cartes tirées par vous</h4>
+            <ul style="list-style: none; padding-left: 0;">
+                {% for carte in REQUEST_VARS['statistiques']['cartes_par_type'] %}
+                    <li><strong>{{ carte['type_carte'] }}</strong> : {{ carte['nb'] }} fois</li>
+                {% else %}
+                    <li style="color: #bdc3c7;">Aucune carte tirée pour l'instant.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="actions-accueil" style="text-align: center; margin-bottom: 40px;">
+        <a href="/parties" style="background-color: #05c46b; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; margin-right: 20px;">
+            Jouer
+        </a>
+        <a href="/deconnexion" style="background-color: #ff3f34; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
+            Se déconnecter
+        </a>
+    </div>
+
+    <div class="regles" style="background-color: #ecf0f1; color: #2c3e50; padding: 20px; border-radius: 8px;">
+        <h3>📖 Comment jouer ?</h3>
+        <p>Le but du jeu est de couler toute la flotte de votre adversaire avant qu'il ne détruise la vôtre. Tour à tour, vous tirez sur une grille pour tenter de trouver ses bateaux cachés.</p>
+        
+        <h4>Règles spécifiques des cartes :</h4>
+        <ul>
+            <li><strong>Carte Bonus :</strong> Permet de tirer deux fois de suite.</li>
+            <li><strong>Carte Malus :</strong> Passe votre tour si vous tombez dessus.</li>
+            <li><strong>Le Radar :</strong> Révèle si un bateau se cache dans une zone proche.</li>
+            <li><strong>Étoile de la mort :</strong> Une carte rare et dévastatrice qui peut changer le cours du jeu !</li>
+        </ul>
+    </div>
+{% endblock %}
