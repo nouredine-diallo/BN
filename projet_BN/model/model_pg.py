@@ -530,13 +530,13 @@ def faire_jouer_adversaire(connexion, id_partie, id_jv, id_jh):
     carte = tirer_carte(connexion, id_partie)
     id_carte = carte['id_carte'] if carte else None
     
-    # 2. Génération d'une coordonnée aléatoire pour son tir
+    # 2. coordeoner aleatoire pour tir
     lettres = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
     lettre_y = random.choice(lettres)
     chiffre_x = random.randint(1, 10)
     coord_tir = f"{lettre_y}{chiffre_x}"
     
-    # 3. Le JV fait son tir sur TA grille (id_jh)
+    # 3 tir jv sur grille jh
     resultat = faire_tir(connexion, id_jv, id_partie, chiffre_x, lettre_y, tour_actuel, id_carte)
     
     return coord_tir, resultat

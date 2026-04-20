@@ -65,11 +65,12 @@ else:
             # On pioche et on tire
             carte_jh = tirer_carte(SESSION['CONNEXION'], id_partie)
             id_carte_jh = carte_jh['id_carte'] if carte_jh else None
-            nom_carte_jh = carte_jh['code'] if carte_jh else "Tir simple"
+            nom_carte_jh = carte_jh['code'] if carte_jh else ""C_MISSILE" 
+            #pour l'instant on tire pas dans la bd une carte car non rempli du coup on affiche juste cmissile , a la phase 3 en s'en occupera 
             
             res_jh = faire_tir(SESSION['CONNEXION'], id_joueur_courant, id_partie, chiffre_x, lettre_y, num_tour_actuel, id_carte_jh)
             
-            message_final = f"Ton tir en {coord_cliquee} : {res_jh}<br>"
+            message_final = f"Carte jouée : {nom_carte_jh} | Ton tir en {coord_cliquee} : {res_jh}  "
             
             # --- 2. VÉRIFICATION FIN DE PARTIE ---
             # Si le jeu n'est pas terminé après ton tir, c'est à l'ordinateur de jouer !
@@ -127,9 +128,11 @@ else:
             if 0 <= y_curr_idx < 10 and 1 <= x_curr <= 10:
                 ma_grille_affichage[y_curr_idx][x_curr - 1]['occupe'] = True
 
-    # --- 5. ENVOI DES VARIABLES À LA VUE ---
+   
     REQUEST_VARS['id_partie'] = id_partie
     REQUEST_VARS['phase'] = phase
     REQUEST_VARS['ma_grille'] = ma_grille_affichage
     REQUEST_VARS['navires_a_placer'] = navires_a_placer
     REQUEST_VARS['flotte_complete'] = (len(navires_a_placer) == 0)
+    if 'nom_carte_jh' in locals():
+        REQUEST_VARS['nom_carte'] = nom_carte_jh
