@@ -31,7 +31,7 @@ elif POST and 'nouvelle_partie' in POST:
         
     if id_nouvelle_partie:
         # Création de la pioche liée à la partie
-        id_pioche = creer_pioche(SESSION['CONNEXION'], id_nouvelle_partie, "Classique")
+        id_pioche = creer_pioche(SESSION['CONNEXION'], id_nouvelle_partie, "Distrib 1")
         
         if id_pioche:
             # Redirection  plateau de jeu

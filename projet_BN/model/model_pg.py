@@ -167,14 +167,46 @@ def creer_partie(connexion, id_jh, id_jv):
     """
     return insert(connexion, q, [id_jv, id_jh])
 
-def creer_pioche(connexion, id_partie, type_pioche):
-    """Créer la pioche avec calcul manuel de l'ID et gestion de nom_distribution."""
-    q = """
+def creer_pioche(connexion, id_partie, type_pioche="Distrib 1"):
+    # 1. Créer l'entrée Pioche AVEC le calcul de l'ID (Spécifique à script1.sql)
+    q_pioche = """
         INSERT INTO Pioche (id_pioche, id_partie, nom_distribution) 
         VALUES ((SELECT COALESCE(MAX(id_pioche), 0) + 1 FROM Pioche), %s, %s) 
         RETURNING id_pioche
     """
-    return insert(connexion, q, [id_partie, type_pioche])
+    id_pioche = insert(connexion, q_pioche, [id_partie, type_pioche])
+    
+    if not id_pioche:
+        return None # Sécurité si l'insertion échoue
+    
+    # 2. Récupérer les proportions
+    proportions = execute_select_query(connexion, "SELECT code, proportion FROM Est_compose WHERE nom_distribution = %s", [type_pioche])
+    
+    # 3. Générer la liste des 100 types de cartes
+    liste_types = []
+    if proportions:
+        for prop in proportions:
+            nb_cartes = int(prop['proportion'] * 100)
+            for _ in range(nb_cartes):
+                liste_types.append(prop['code'])
+    
+    # Sécurité au cas où
+    while len(liste_types) < 100: 
+        liste_types.append('C_MISSILE')
+    
+    # 4. Mélanger les rangs (1 à 100)
+    rangs = list(range(1, 101))
+    random.shuffle(rangs)
+    
+    # 5. Insertion des 100 cartes AVEC le calcul de l'ID
+    q_carte = """
+        INSERT INTO Carte (id_carte, id_pioche, code, rang, etat) 
+        VALUES ((SELECT COALESCE(MAX(id_carte), 0) + 1 FROM Carte), %s, %s, %s, 'dans la pioche')
+    """
+    for i in range(100):
+        execute_other_query(connexion, q_carte, [id_pioche, liste_types[i], rangs[i]])
+        
+    return id_pioche
 
 def ajouter_joueur_virtuel(connexion, pseudo, niveau, id_createur):
     """Création du Double INSERT pour le JV."""
@@ -237,9 +269,55 @@ def get_pseudo_joueur(connexion, id_joueur):
     return None
 
 #FONCTION POUR LE JEU 
+def placer_navires_ia(connexion, id_grille):
+    """Algorithme IA avec Logs de débuggage pour voir le placement secret."""
+    navires = get_tous_les_navires(connexion)
+    lettres = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+    occupe = [[False for _ in range(10)] for _ in range(10)]
+
+    logger.info("=== GÉNÉRATION DE LA FLOTTE IA (SECRET) ===")
+
+    for nav in navires:
+        taille = nav['taille']
+        place = False
+        
+        while not place:
+            sens = random.choice(['Horizontal', 'Vertical'])
+            if sens == 'Horizontal':
+                x = random.randint(1, 10 - taille + 1)
+                y_idx = random.randint(0, 9)
+            else:
+                x = random.randint(1, 10)
+                y_idx = random.randint(0, 10 - taille)
+
+            collision = False
+            for i in range(taille):
+                cx = (x - 1 + i) if sens == 'Horizontal' else (x - 1)
+                cy = y_idx if sens == 'Horizontal' else (y_idx + i)
+                if occupe[cy][cx]:
+                    collision = True
+                    break
+            
+            if not collision:
+                for i in range(taille):
+                    cx = (x - 1 + i) if sens == 'Horizontal' else (x - 1)
+                    cy = y_idx if sens == 'Horizontal' else (y_idx + i)
+                    occupe[cy][cx] = True
+                
+                # Insertion en base
+                q_place = "INSERT INTO Est_place (id_navire, id_grille, coord_X, coord_Y, sens) VALUES (%s, %s, %s, %s, %s)"
+                execute_other_query(connexion, q_place, [nav['id_navire'], id_grille, x, lettres[y_idx], sens])
+                
+                # --- LE LOG DE DÉBUGGAGE ---
+                logger.info(f"📍 IA : {nav['nom']} ({taille} cases) placé en {lettres[y_idx]}{x} [{sens}]")
+                # ---------------------------
+                
+                place = True
+    
+    logger.info("============================================")
 
 def initialiser_grille_joueur(connexion, id_partie, id_joueur):
-    """Crée une grille 10x10 """
+    """Crée une grille 10x10 et place la flotte automatiquement si c'est l'IA."""
     # 1. Créer la Grille
     q_grille = """
         INSERT INTO Grille (id_grille, largeur, hauteur) 
@@ -256,6 +334,15 @@ def initialiser_grille_joueur(connexion, id_partie, id_joueur):
         # 3. Lier la grille au joueur et à la partie
         q_lien = "INSERT INTO ou_placer (id_joueur, id_partie, id_grille) VALUES (%s, %s, %s)"
         execute_other_query(connexion, q_lien, [id_joueur, id_partie, id_grille])
+        
+        # --- L'AJOUT MAGIQUE : VÉRIFICATION DU TYPE DE JOUEUR ---
+        # Si le joueur est présent dans JOUEUR_Virtuel, on lance l'algorithme
+        q_verif_ia = "SELECT id_joueur FROM JOUEUR_Virtuel WHERE id_joueur = %s"
+        est_ia = execute_select_query(connexion, q_verif_ia, [id_joueur])
+        
+        if est_ia:
+            placer_navires_ia(connexion, id_grille)
+        # --------------------------------------------------------
         
         return id_grille
     return None
@@ -346,6 +433,8 @@ def est_navire_coule(connexion, id_partie, id_grille_adv, id_navire):
     
     if tous_les_tirs:
         for t in tous_les_tirs:
+            if t['coord_y'] is None: 
+                continue
             tx = t['coord_x']
             ty_code = ord(t['coord_y'])
             
@@ -541,6 +630,184 @@ def faire_jouer_adversaire(connexion, id_partie, id_jv, id_jh):
     
     return coord_tir, resultat
 
+
+def suspendre_partie(connexion, id_partie):
+    """Suspend la partie et ferme la séquence temporelle courante."""
+    # 1. On change l'état de la partie
+    q_etat = "UPDATE Partie SET etat = 'Suspendue' WHERE id_partie = %s"
+    execute_other_query(connexion, q_etat, [id_partie])
+
+    # 2. On clôture la séquence temporelle en cours (celle qui n'a pas de date_fin)
+    q_seq = """
+        UPDATE Seq_Temp 
+        SET date_fin = CURRENT_DATE, heure_fin = CURRENT_TIME 
+        WHERE id_partie = %s AND date_fin IS NULL
+    """
+    return execute_other_query(connexion, q_seq, [id_partie])
+
+def reprendre_partie(connexion, id_partie):
+    """Reprend une partie suspendue en ouvrant une nouvelle séquence temporelle."""
+    # 1. On remet la partie En cours
+    q_etat = "UPDATE Partie SET etat = 'En cours' WHERE id_partie = %s"
+    execute_other_query(connexion, q_etat, [id_partie])
+
+    # 2. On crée une nouvelle séquence temporelle pour cette nouvelle session de jeu
+    q_seq = """
+        INSERT INTO Seq_Temp (id_partie, date_debut, heure_debut) 
+        VALUES (%s, CURRENT_DATE, CURRENT_TIME)
+    """
+    return execute_other_query(connexion, q_seq, [id_partie])
+
+def get_tirs_partie(connexion, id_partie):
+    """Récupère l'historique de tous les tirs pour reconstruire les grilles visuellement."""
+    q = "SELECT coord_X, coord_Y, id_joueur FROM Tir WHERE id_partie = %s"
+    return execute_select_query(connexion, q, [id_partie])
+
+def traiter_C_REJOUE(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour, id_carte):
+    """Primitive pour C_REJOUE : Effectue un tir simple, le contrôleur gérera le fait de rejouer."""
+    res = faire_tir(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour, id_carte)
+    return f"Tir en {coord_y}{coord_x} : {res}"
+
+def traiter_C_PASSE(connexion, id_joueur, id_partie, num_tour, id_carte):
+    """Primitive pour C_PASSE : Le joueur ne tire pas, mais on enregistre la carte jouée."""
+    q_numtir = "SELECT COALESCE(MAX(num_tir), 0) + 1 AS next_tir FROM Tir WHERE id_partie = %s AND num_tour = %s"
+    res_numtir = execute_select_query(connexion, q_numtir, [id_partie, num_tour])
+    num_tir = res_numtir[0]['next_tir'] if res_numtir else 1
+    
+    q_insert = """
+        INSERT INTO Tir (id_partie, num_tour, num_tir, coord_X, coord_Y, id_joueur, id_carte)
+        VALUES (%s, %s, %s, NULL, NULL, %s, %s)
+    """
+    execute_other_query(connexion, q_insert, [id_partie, num_tour, num_tir, id_joueur, id_carte])
+    return "Oups ! Vous passez votre tour."
+
+def traiter_C_VIDE(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour, id_carte):
+    """Primitive pour C_VIDE : Le tir part, s'enregistre, mais ne touche jamais rien (Flop garanti)."""
+    q_numtir = "SELECT COALESCE(MAX(num_tir), 0) + 1 AS next_tir FROM Tir WHERE id_partie = %s AND num_tour = %s"
+    res_numtir = execute_select_query(connexion, q_numtir, [id_partie, num_tour])
+    num_tir = res_numtir[0]['next_tir'] if res_numtir else 1
+    
+    q_insert = """
+        INSERT INTO Tir (id_partie, num_tour, num_tir, coord_X, coord_Y, id_joueur, id_carte)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+    execute_other_query(connexion, q_insert, [id_partie, num_tour, num_tir, coord_x, coord_y, id_joueur, id_carte])
+    return "Pffft... La carte était vide. Flop garanti !"
+
+def traiter_C_MPM(connexion, id_joueur, id_partie, num_tour, id_carte):
+    """Primitive pour C_MPM : Le missile se perd et frappe une coordonnée 100% aléatoire."""
+    lettres = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+    lettre_y = random.choice(lettres)
+    chiffre_x = random.randint(1, 10)
+    
+    # On utilise ton faire_tir classique, mais avec les coordonnées aléatoires !
+    res = faire_tir(connexion, id_joueur, id_partie, chiffre_x, lettre_y, num_tour, id_carte)
+    return f"Missile perdu ! Il a frappé au hasard en {lettre_y}{chiffre_x} : {res}"
+
+def traiter_C_OUPS(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour, id_carte):
+    """Primitive pour C_OUPS : Le joueur tire sur sa propre grille !"""
+    # Pour simuler ça facilement, on dit à la base de données que c'est l'adversaire (l'ordinateur) 
+    # qui a fait le tir à ta place sur TA coordonnée !
+    
+    # 1. On cherche l'ID de l'adversaire
+    q_adv = "SELECT id_jv FROM Partie WHERE id_partie = %s"
+    res_adv = execute_select_query(connexion, q_adv, [id_partie])
+    id_jv = res_adv[0]['id_jv']
+    
+    # 2. L'adversaire tire sur toi avec ta carte !
+    res = faire_tir(connexion, id_jv, id_partie, coord_x, coord_y, num_tour, id_carte)
+    return f"OUPS ! Vous avez tiré sur votre propre flotte en {coord_y}{coord_x} : {res}"
+
+
+
+def traiter_C_MEGA(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour, id_carte):
+    """Primitive pour C_MEGA : Tire sur 3x3 cases. Respecte le UNIQUE(id_carte) en SQL."""
+    lettres = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+    idx_y = lettres.index(coord_y)
+    impacts = []
+    
+    for dy in [-1, 0, 1]:
+        for dx in [-1, 0, 1]:
+            ny_idx = idx_y + dy
+            nx = coord_x + dx
+            
+            # Vérifier qu'on ne sort pas de la grille 10x10
+            if 0 <= ny_idx < 10 and 1 <= nx <= 10:
+                ny_lettre = lettres[ny_idx]
+                
+                # ASTUCE SQL : On attribue l'id_carte UNIQUEMENT au tir central pour éviter l'erreur UNIQUE(id_carte) de script1.sql
+                carte_a_inserer = id_carte if (dx == 0 and dy == 0) else None
+                
+                res = faire_tir(connexion, id_joueur, id_partie, nx, ny_lettre, num_tour, carte_a_inserer)
+                if "Touché" in res or "Coulé" in res or "Gagnée" in res:
+                    impacts.append(f"{ny_lettre}{nx}")
+                    
+    if impacts:
+        return f"EXPLOSION NUCLÉAIRE ! Navires touchés en : {', '.join(impacts)}"
+    return "Gros boum... mais que de l'eau. Flop magistral !"
+
+def traiter_C_WILLY(connexion, id_joueur, id_partie, num_tour, id_carte, id_jv):
+    """Primitive pour C_WILLY : Place une orque et attaque la propre grille du joueur."""
+    id_ma_grille = get_grille_joueur(connexion, id_partie, id_joueur)
+    navires = get_navires_places(connexion, id_ma_grille)
+
+    if not navires:
+        return "Willy a faim, mais vous n'avez aucun bateau à croquer !"
+
+    # 1. On choisit une victime parmi NOS navires
+    nav_victime = random.choice(navires)
+    nx = nav_victime['coord_x']
+    ny = nav_victime['coord_y']
+
+    # 2. Gestion de la table 'Orque' et 'Contient_orque' (selon script1.sql)
+    q_orque = "SELECT id_orque FROM Orque LIMIT 1"
+    res_orque = execute_select_query(connexion, q_orque)
+    # S'il n'y a pas d'orque en base, on en crée un
+    id_orque = res_orque[0]['id_orque'] if res_orque else insert(connexion, "INSERT INTO Orque (nom) VALUES ('Willy') RETURNING id_orque")
+    
+    # On insère l'orque sur la grille (on ignore l'erreur si elle y est déjà)
+    try:
+        execute_other_query(connexion, "INSERT INTO Contient_orque (id_grille, id_orque, coord_X, coord_Y) VALUES (%s, %s, %s, %s)", [id_ma_grille, id_orque, nx, ny])
+    except:
+        pass
+
+    # 3. L'ordinateur (id_jv) effectue un tir forcé sur NOTRE navire
+    res = faire_tir(connexion, id_jv, id_partie, nx, ny, num_tour, id_carte)
+    return f"C_WILLY a attiré une Orque sur votre grille en {ny}{nx} ! ({res})"
+
+def traiter_C_LEURRE(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour, id_carte):
+    """Primitive pour C_LEURRE : Ajoute un leurre dans la table Leurre de script1.sql."""
+    id_ma_grille = get_grille_joueur(connexion, id_partie, id_joueur)
+
+    # 1. Obtenir le prochain numéro de leurre pour cette grille
+    q_num = "SELECT COALESCE(MAX(num_L), 0) + 1 AS next_l FROM Leurre WHERE id_grille = %s"
+    res_num = execute_select_query(connexion, q_num, [id_ma_grille])
+    num_l = res_num[0]['next_l']
+
+    # 2. Insérer dans la table Leurre
+    q_insert_leurre = "INSERT INTO Leurre (id_grille, num_L, taille, coord_X, coord_Y, sens) VALUES (%s, %s, 1, %s, %s, 'Horizontal')"
+    execute_other_query(connexion, q_insert_leurre, [id_ma_grille, num_l, coord_x, coord_y])
+
+    # 3. Enregistrer l'utilisation de la carte dans Tir (coordonnées NULL car on n'attaque pas l'adversaire)
+    q_tir = "INSERT INTO Tir (id_partie, num_tour, num_tir, coord_X, coord_Y, id_joueur, id_carte) VALUES (%s, %s, (SELECT COALESCE(MAX(num_tir), 0) + 1 FROM Tir WHERE id_partie = %s AND num_tour = %s), NULL, NULL, %s, %s)"
+    execute_other_query(connexion, q_tir, [id_partie, num_tour, id_partie, num_tour, id_joueur, id_carte])
+
+    return f"Vous avez posé un C_LEURRE en {coord_y}{coord_x} sur votre propre grille !"
+
+def traiter_C_ETOILE(connexion, id_joueur, id_partie, num_tour, id_carte, id_jv):
+    """Primitive pour C_ETOILE : Révèle une case ennemie sans tirer."""
+    # 1. Consommer la carte
+    q_tir = "INSERT INTO Tir (id_partie, num_tour, num_tir, coord_X, coord_Y, id_joueur, id_carte) VALUES (%s, %s, (SELECT COALESCE(MAX(num_tir), 0) + 1 FROM Tir WHERE id_partie = %s AND num_tour = %s), NULL, NULL, %s, %s)"
+    execute_other_query(connexion, q_tir, [id_partie, num_tour, id_partie, num_tour, id_joueur, id_carte])
+
+    # 2. Fouiller secrètement la grille de l'adversaire (id_jv)
+    id_grille_adv = get_grille_joueur(connexion, id_partie, id_jv)
+    navires_adv = get_navires_places(connexion, id_grille_adv)
+
+    if navires_adv:
+        nav = random.choice(navires_adv)
+        return f"✨ C_ETOILE révèle un signal fort sur la ligne {nav['coord_y']}..."
+    return "✨ Le radar de C_ETOILE ne trouve rien."
 
 
 
