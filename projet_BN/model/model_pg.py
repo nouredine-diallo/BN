@@ -549,6 +549,20 @@ def faire_tir(connexion, id_joueur, id_partie, coord_x, coord_y, num_tour,id_car
             # Prédicat 2 : Si un navire vient de couler, est-ce que c'était le dernier ?
             if est_partie_finie(connexion, id_partie, id_grille_adv):
                 resultat_tir = "Coulé et Partie Gagnée !"
+            
+                q_nb_tirs = "SELECT COUNT(*) AS nb FROM Tir WHERE id_partie = %s AND id_joueur = %s"
+                res_nb = execute_select_query(connexion, q_nb_tirs, [id_partie, id_joueur])
+                nb_tirs = res_nb[0]['nb'] if res_nb else 1
+
+                score = int(100 * (17 / nb_tirs))
+
+                q_update = """
+                    UPDATE Partie 
+                    SET id_jgagnant = %s, score_final = %s, etat = 'Terminée'
+                    WHERE id_partie = %s
+                """
+                execute_other_query(connexion, q_update, [id_joueur, score, id_partie])
+            
                 
     return resultat_tir
 
