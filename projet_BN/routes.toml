@@ -19,3 +19,8 @@ url = "jeu"
 controleur = "controleurs/jeu.py"
 template = "jeu.html"
 
+[[routes]]
+url = "classements"
+controleur = "controleurs/classements.py"
+template = "classements.html"
+
