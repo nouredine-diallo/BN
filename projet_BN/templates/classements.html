@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2 style="text-align:center;">🏆 Classement</h2>
+
+<table style="margin:auto; background:white; color:black; padding:20px;">
+<tr>
+    <th>Pseudo</th>
+    <th>Score</th>
+</tr>
+
+{% for j in REQUEST_VARS['classement'] %}
+<tr>
+    <td>{{ j.pseudo }}</td>
+    <td>{{ j.score_total }}</td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}
