@@ -44,6 +44,18 @@
             </div>
         {% endif %}
 
+        {% if 'nom_carte' in REQUEST_VARS %}
+            <div style="text-align:center; margin-bottom:20px;">
+                <p style="font-weight:bold;">Carte jouée :</p>
+
+            <img 
+                src="/projet_BN/static/img/cartes/{{ REQUEST_VARS['nom_carte'] }}.png"
+                alt="{{ REQUEST_VARS['nom_carte'] }}"
+                style="max-width:160px; border-radius:10px;"
+            >
+            </div>
+        {% endif %}
+
         <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; align-items: flex-start;">
             
             <div style="background-color: #ecf0f1; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
