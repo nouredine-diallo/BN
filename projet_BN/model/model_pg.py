@@ -122,6 +122,23 @@ def get_stat_joueur(connexion, id_joueur):
 
     return stats
 
+def get_classement(connexion):
+    """
+    Récupère le classement des joueurs selon leur score total.
+    """
+    q = """
+        SELECT 
+            j.id_joueur,
+            j.pseudo,
+            COALESCE(SUM(p.score_final), 0) AS score_total,
+            COUNT(p.id_partie) AS nb_victoires
+        FROM JOUEUR j
+        LEFT JOIN Partie p ON j.id_joueur = p.id_jgagnant
+        GROUP BY j.id_joueur, j.pseudo
+        ORDER BY score_total DESC, nb_victoires DESC, j.pseudo
+    """
+    return execute_select_query(connexion, q)
+
 # --- FONCTIONS POUR LA PAGE "MES PARTIES" ---
 
 def get_parties_en_cours(connexion, id_jh):
